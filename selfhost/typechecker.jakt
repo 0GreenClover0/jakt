@@ -8367,7 +8367,7 @@ struct Typechecker {
                 if args.size() > consumed_arg {
                     let (name, span, expr) = args[consumed_arg]
 
-                    if .validate_argument_label(param, label: name, span, expr, default_value: maybe_checked_expr) {
+                    if .validate_argument_label(param, arg: args[consumed_arg], default_value: maybe_checked_expr) {
                         maybe_checked_expr = .typecheck_expression(expr, scope_id, safety_mode, type_hint: param.variable.type_id)
                         consumed_arg++
                     }
@@ -8407,39 +8407,39 @@ struct Typechecker {
         return current_type_id
     }
 
-    function validate_argument_label(mut this, param: CheckedParameter, label: String, span: Span, expr: ParsedExpression, default_value: CheckedExpression?) throws -> bool {
-        if label == param.variable.name {
+    function validate_argument_label(mut this, param: CheckedParameter, arg: (String, Span, ParsedExpression), default_value: CheckedExpression?) throws -> bool {
+        let name = .get_argument_name(arg)
+        if name == param.variable.name {
             return true
         }
-        match expr {
-            Var(name, span) => {
-                if name == param.variable.name {
-                    return true
-                }
-                if not default_value.has_value() {
-                    .error(format("Wrong parameter name in argument label (got '{}', expected '{}')", name, param.variable.name), span)
-                }
-                return false
+
+        if not default_value.has_value() {
+            .error(format("Wrong parameter name in argument label (got '{}', expected '{}')", name, param.variable.name), arg.1)
+        }
+
+        return false
+    }
+
+    function get_argument_name(this, arg: (String, Span, ParsedExpression)) -> String {
+        if not arg.0.is_empty() {
+            return arg.0
+        }
+
+        match arg.2 {
+            Var(name) => {
+                return name
             }
             UnaryOp(expr, op) => {
                 if op is Reference or op is MutableReference or op is Dereference {
-                    if expr is Var(name, span) {
-                        if name == param.variable.name {
-                            return true
-                        }
-                        if not default_value.has_value() {
-                            .error(format("Wrong parameter name in argument label (got ‘{}’, expected ‘{}’)", name, param.variable.name), span)
-                        }
-                        return false
+                    if expr is Var(name) {
+                        return name
                     }
                 }
             }
             else => {}
         }
-        if not default_value.has_value() {
-            .error(format("Wrong parameter name in argument label (got '{}', expected '{}')", label, param.variable.name), span)
-        }
-        return false
+
+        return ""
     }
 
     function find_all_implementations_of_trait(mut this, type_id: TypeId, trait_id: TraitId) throws -> [[TypeId]] {
