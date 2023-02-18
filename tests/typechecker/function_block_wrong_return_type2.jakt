@@ -1,0 +1,10 @@
+/// Expect:
+/// - error: "Type mismatch: expected ‘void’, but got ‘String’"
+
+fn foo() {
+    return 2
+}
+
+fn main() {
+    foo()
+}

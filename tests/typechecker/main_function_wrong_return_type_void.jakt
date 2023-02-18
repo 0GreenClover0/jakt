@@ -1,0 +1,6 @@
+/// Expect:
+/// - error: "Main function must return c_int"
+
+fn main() {
+    return
+}
