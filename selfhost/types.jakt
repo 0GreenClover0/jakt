@@ -1436,6 +1436,29 @@ enum NumberConstant {
             panic("to_usize on a floating point constant")
         }
     }
+
+    fn get_negated_value(this) throws -> NumberConstant? => match this {
+        Signed(value) => {
+            let max_signed = Type::I64.max() as! usize;
+            let min_signed = Type::I64.min()
+
+            mut negated_number = 0;
+            if value == min_signed {
+                // NOTE: We are storing i64 without a sign, so -9223372036854775808 is stored as 9223372036854775808,
+                // which will overflow to -9223372036854775808.
+                negated_number = min_signed
+            } else {
+                let raw_number = .to_usize()
+                if raw_number <= max_signed {
+                    negated_number = 0 - (raw_number as! i64)
+                }
+            }
+
+            yield NumberConstant::Signed(negated_number as! i64)
+        }
+        Floating(value) => { todo("Implement get negated float") }
+        Unsigned => None
+    }
 }
 
 enum CheckedNumericConstant {
@@ -1597,22 +1620,30 @@ boxed enum CheckedExpression {
     Reflect(type: TypeId, span: Span, type_id: TypeId)
     Garbage(span: Span, type_id: TypeId)
 
-    fn to_number_constant(this, program: CheckedProgram) -> NumberConstant? => match this {
+    fn to_number_constant(this, program: CheckedProgram) throws -> NumberConstant? => match this {
         NumericConstant(val, span, type_id) => val.number_constant()
         UnaryOp(expr, op, span, type_id) => {
             mut result: NumberConstant? = None
-            guard op is TypeCast(cast) else {
+            guard op is TypeCast or op is Negate else {
                 return None
             }
-            if not cast is Infallible {
+
+            if op is TypeCast(cast) and not cast is Infallible {
                 result = None
             }
+
             if not program.is_integer(type_id) and not program.is_floating(type_id) {
                 result = None
             }
+
             if expr is NumericConstant(val) {
                 result = val.number_constant()
+
+                if result.has_value() and op is Negate {
+                    result = result!.get_negated_value()
+                }
             }
+
             yield result
         }
         else => None
