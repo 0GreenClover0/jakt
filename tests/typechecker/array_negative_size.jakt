@@ -1,0 +1,8 @@
+/// Expect:
+/// - error: "Array size cannot be negative"
+
+fn main()
+{
+    let test = [0; -9223372036854775808]
+    println("{}", test)
+}

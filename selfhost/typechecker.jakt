@@ -8351,8 +8351,6 @@ struct Typechecker {
         }
         mut repeat: CheckedExpression? = None
         if fill_size.has_value() {
-            // Check fill size is an integer.
-            // TODO: Check fill size is positive when possible.
             let fill_size_value = fill_size.value()
             let fill_size_checked = .typecheck_expression_and_dereference_if_needed(fill_size_value, scope_id, safety_mode, type_hint: None, span)
             let fill_size_type = fill_size_checked.type()
@@ -8362,6 +8360,19 @@ struct Typechecker {
                     fill_size_value.span()
                 )
             }
+
+            let number_constant = fill_size_checked.to_number_constant(program: .program)
+            if number_constant.has_value() {
+                match number_constant! {
+                    Signed(val) => {
+                        if (val < 0) {
+                            .error("Array size cannot be negative", fill_size_checked.span())
+                        }
+                    }
+                    else => { }
+                }
+            }
+
             repeat = fill_size_checked
         }
         let array_struct_id = .find_struct_in_prelude("Array")
