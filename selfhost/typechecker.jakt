@@ -8655,12 +8655,24 @@ struct Typechecker {
             yield CheckedExpression::BinaryOp(lhs: checked_lhs!, op: checked_operator, rhs: checked_rhs!, span, type_id: output_type)
         }
         OptionalNone(span) => {
-            mut type_hint_unwrapped: TypeId? = None
+            mut final_type_id: TypeId? = None
             if type_hint.has_value() {
-                type_hint_unwrapped = .unwrap_type_id_from_optional_if_needed(type_id: type_hint!.type_id)
+                let weak_ptr_struct_id = .find_struct_in_prelude("WeakPtr")
+                let optional_struct_id = .find_struct_in_prelude("Optional")
+
+                // If the type_hint is not an Optional nor a WeakPtr, wrap the type in an Optional.
+                // NOTE: This means that when returning "None" from ex. a match case, we will always try to infer the Optional of a type,
+                //       rather than a weak ptr to it.
+                if .get_type(type_hint!.type_id) is GenericInstance(id, args) and not id.equals(optional_struct_id) and not id.equals(weak_ptr_struct_id) {
+                    let optional_type = Type::GenericInstance(id: optional_struct_id, args: [type_hint!.type_id])
+                    final_type_id = .find_or_add_type_id(optional_type)
+                } else if not .get_type(type_hint!.type_id) is GenericInstance {
+                    let optional_type = Type::GenericInstance(id: optional_struct_id, args: [type_hint!.type_id])
+                    final_type_id = .find_or_add_type_id(optional_type)
+                }
             }
 
-            yield CheckedExpression::OptionalNone(span, type_id: type_hint_unwrapped ?? unknown_type_id())
+            yield CheckedExpression::OptionalNone(span, type_id: final_type_id ?? unknown_type_id())
         }
         OptionalSome(expr, span) => {
             let checked_expr = .typecheck_expression(expr, scope_id, safety_mode, type_hint: None)
